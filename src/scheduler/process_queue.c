@@ -4,7 +4,6 @@
 
 #define QUEUE_CAPACITY TIMESHARING_MAX_PROCESSES
 
-/* Mengubah posisi relatif terhadap head menjadi indeks buffer. */
 static unsigned int slot_at(const timesharing_queue *queue,
                             unsigned int offset)
 {
@@ -66,7 +65,6 @@ bool queue_push(timesharing_queue *queue, timesharing_process process)
     if (queue_is_full(queue) || queue_find(queue, process.pid, NULL)) {
         return false;
     }
-
     queue->items[slot_at(queue, queue->count)] = process;
     queue->count += 1U;
     return true;
@@ -112,7 +110,7 @@ bool queue_remove(timesharing_queue *queue, pid_t pid)
         return false;
     }
 
-    /* Geser entri setelah posisi target agar urutan FIFO tetap terjaga. */
+    /* Geser entri sesudahnya agar urutan FIFO tetap. */
     for (unsigned int i = position; i + 1U < queue->count; ++i) {
         queue->items[slot_at(queue, i)] = queue->items[slot_at(queue, i + 1U)];
     }
