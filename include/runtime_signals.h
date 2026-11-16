@@ -31,4 +31,10 @@ runtime_event runtime_wait_event(void);
 bool runtime_interrupted(void);
 void runtime_clear_child_event(void);
 
+/* Melanjutkan lalu meminta proses anak berhenti lewat SIGTERM. */
+bool runtime_request_exit(pid_t pid);
+
+/* Mengembalikan mask signal dan membuang timer quantum. */
+void runtime_signals_restore(void);
+
 #endif

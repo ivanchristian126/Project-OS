@@ -152,3 +152,22 @@ void runtime_clear_child_event(void)
 {
     g_child_event = 0;
 }
+
+bool runtime_request_exit(pid_t pid)
+{
+    if (pid <= 0) {
+        return false;
+    }
+    /* SIGCONT dulu, proses yang sedang berhenti tidak memproses SIGTERM. */
+    (void)kill(pid, SIGCONT);
+    return kill(pid, SIGTERM) == 0;
+}
+
+void runtime_signals_restore(void)
+{
+    if (g_timer_ready) {
+        (void)timer_delete(g_timer);
+        g_timer_ready = false;
+    }
+    (void)sigprocmask(SIG_SETMASK, &g_unblocked, NULL);
+}
