@@ -53,6 +53,7 @@ static void run_workload(unsigned int index, unsigned int workload_ms)
             break;
         }
     }
+    (void)sink;
 }
 
 static void reset_inherited_handlers(void)
