@@ -1,7 +1,7 @@
 #ifndef TIMESHARING_H
 #define TIMESHARING_H
 
-#define TIMESHARING_VERSION "0.2.0"
+#define TIMESHARING_VERSION "0.3.0"
 
 /* Konfigurasi default aplikasi. */
 #define TIMESHARING_DEFAULT_PROCESS_COUNT 3U
