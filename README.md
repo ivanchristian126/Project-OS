@@ -225,15 +225,15 @@ pencatatan ke kernel.
 | --- | --- | --- |
 | 1 | Ivan Christian | Struktur proyek, README, skrip build |
 | 2 | Thomas Seowinata | Antrean proses: menambah, mengambil, menghapus |
-| 3 | Ephen | Proses anak dengan `fork()` dan workload terbatas |
-| 4 | Eras Maria Sutanto | Penyiapan Linux dan panduan build kernel |
+| 3 | Stephen Christopher | Proses anak dengan `fork()` dan workload terbatas |
+| 4 | Nicko Richardo | Penyiapan Linux dan panduan build kernel |
 | 5 | Ivan Christian | Masukan jumlah proses dan quantum dari terminal |
 | 6 | Thomas Seowinata | Algoritma Round Robin |
-| 7 | Ephen | `SIGSTOP`, `SIGCONT`, dan timer berbasis signal |
-| 8 | Eras Maria Sutanto | Modifikasi syscall, patch kernel, uji syscall |
+| 7 | Stephen Christopher | `SIGSTOP`, `SIGCONT`, dan timer berbasis signal |
+| 8 | Nicko Richardo | Modifikasi syscall, patch kernel, uji syscall |
 | 9 | Ivan Christian | Integrasi masukan, penjadwal, proses, dan timer |
 | 10 | Thomas Seowinata | Pengujian urutan giliran dan variasi jumlah proses |
-| 11 | Ephen | Penanganan `Ctrl+C`, kegagalan proses, dan cleanup |
-| 12 | Eras Maria Sutanto | Menghubungkan syscall termodifikasi ke aplikasi |
+| 11 | Stephen Christopher | Penanganan `Ctrl+C`, kegagalan proses, dan cleanup |
+| 12 | Nicko Richardo | Menghubungkan syscall termodifikasi ke aplikasi |
 | 13 | Ivan Christian | Laporan hasil dan pembaruan README |
 | 14 | Semua | Pengujian akhir, video demo, dan paket pengumpulan |
