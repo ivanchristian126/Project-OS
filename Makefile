@@ -8,8 +8,9 @@ SOURCES := $(wildcard src/*.c src/scheduler/*.c src/runtime/*.c src/kernel_bridg
 OBJECTS := $(patsubst src/%.c,build/%.o,$(SOURCES))
 DEPS := $(OBJECTS:.o=.d)
 TARGET := build/timesharing
+SYSCALL_TEST := build/ts_mark_test
 
-.PHONY: all run clean
+.PHONY: all run clean syscall-test
 
 all: $(TARGET)
 
@@ -22,6 +23,12 @@ build/%.o: src/%.c
 
 run: $(TARGET)
 	./$(TARGET)
+
+syscall-test: $(SYSCALL_TEST)
+
+$(SYSCALL_TEST): kernel/tests/ts_mark_test.c include/ts_syscall.h
+	mkdir -p $(dir $@)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $<
 
 clean:
 	rm -rf build
