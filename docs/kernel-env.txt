@@ -1,0 +1,5 @@
+# Catatan lingkungan kernel proyek Time Sharing System
+# File ini diisi otomatis oleh scripts/collect-env.sh di mesin Linux.
+# Status: BELUM DIISI. Jalankan skrip di VM Linux lalu commit hasilnya.
+
+KERNEL_SOURCE=<url dan versi source kernel yang diunduh>
