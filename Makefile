@@ -9,8 +9,11 @@ OBJECTS := $(patsubst src/%.c,build/%.o,$(SOURCES))
 DEPS := $(OBJECTS:.o=.d)
 TARGET := build/timesharing
 SYSCALL_TEST := build/ts_mark_test
+UNIT_TEST := build/test_queue
+UNIT_TEST_SOURCES := tests/test_queue.c src/scheduler/process_queue.c \
+	src/scheduler/round_robin.c
 
-.PHONY: all run clean syscall-test
+.PHONY: all run clean test check syscall-test
 
 all: $(TARGET)
 
@@ -24,11 +27,21 @@ build/%.o: src/%.c
 run: $(TARGET)
 	./$(TARGET)
 
-syscall-test: $(SYSCALL_TEST)
+$(UNIT_TEST): $(UNIT_TEST_SOURCES) include/process_queue.h include/scheduler.h
+	mkdir -p $(dir $@)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $(UNIT_TEST_SOURCES)
+
+test: $(UNIT_TEST)
+	./$(UNIT_TEST)
+
+check: all
+	bash tests/run_tests.sh
 
 $(SYSCALL_TEST): kernel/tests/ts_mark_test.c include/ts_syscall.h
 	mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $<
+
+syscall-test: $(SYSCALL_TEST)
 
 clean:
 	rm -rf build
