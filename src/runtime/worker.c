@@ -11,6 +11,7 @@
 
 #define PROGRESS_STEPS 5U
 #define WORK_CHUNK 20000U
+#define TERM_POLL_MS 10U
 
 /* Waktu CPU proses ini sendiri; tidak bertambah saat proses di-SIGSTOP. */
 static double cpu_time_ms(void)
@@ -177,6 +178,59 @@ void worker_join(worker_handle *worker)
     }
 }
 
+static void sleep_ms(unsigned int milliseconds)
+{
+    struct timespec request;
+
+    request.tv_sec = (time_t)(milliseconds / 1000U);
+    request.tv_nsec = (long)(milliseconds % 1000U) * 1000000L;
+    (void)nanosleep(&request, NULL);
+}
+
+bool worker_terminate(worker_handle *worker, unsigned int grace_ms)
+{
+    if (worker == NULL) {
+        return false;
+    }
+    if (worker->finished || worker->pid <= 0) {
+        return worker->finished;
+    }
+
+    /* SIGCONT dulu agar proses yang sedang berhenti dapat menerima SIGTERM. */
+    (void)kill(worker->pid, SIGCONT);
+    (void)kill(worker->pid, SIGTERM);
+
+    for (unsigned int waited = 0U; waited < grace_ms; waited += TERM_POLL_MS) {
+        if (worker_collect(worker)) {
+            return true;
+        }
+        sleep_ms(TERM_POLL_MS);
+    }
+
+    (void)kill(worker->pid, SIGKILL);
+    worker_join(worker);
+    return worker->finished;
+}
+
+unsigned int worker_reap_orphans(void)
+{
+    unsigned int reaped = 0U;
+
+    for (;;) {
+        const pid_t result = waitpid(-1, NULL, WNOHANG);
+
+        if (result > 0) {
+            reaped += 1U;
+            continue;
+        }
+        if (result < 0 && errno == EINTR) {
+            continue;
+        }
+        break;
+    }
+    return reaped;
+}
+
 const char *worker_state_text(const worker_handle *worker)
 {
     if (worker == NULL) {
@@ -185,5 +239,9 @@ const char *worker_state_text(const worker_handle *worker)
     if (!worker->finished) {
         return "berjalan";
     }
-    return worker->failed ? "gagal" : "selesai";
+    if (!worker->failed) {
+        return "selesai";
+    }
+    /* exit_status negatif berarti proses berakhir karena signal. */
+    return (worker->exit_status < 0) ? "dihentikan" : "gagal";
 }

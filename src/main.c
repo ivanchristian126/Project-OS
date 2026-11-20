@@ -9,6 +9,8 @@
 #include <stdio.h>
 #include <time.h>
 
+#define CLEANUP_GRACE_MS 200U
+
 /* Catatan hasil satu proses selama simulasi. */
 typedef struct {
     worker_handle worker;
@@ -138,14 +140,47 @@ static void run_simulation(process_record *records, unsigned int count,
     }
 }
 
-static void finish_remaining(process_record *records, unsigned int count)
+static unsigned int count_failed(const process_record *records,
+                                 unsigned int count)
+{
+    unsigned int failed = 0U;
+
+    for (unsigned int i = 0U; i < count; ++i) {
+        if (records[i].worker.failed) {
+            failed += 1U;
+        }
+    }
+    return failed;
+}
+
+/*
+ * Menutup semua proses anak. Saat dihentikan lewat signal, proses diminta
+ * keluar; pada akhir normal proses dilanjutkan sampai bebannya habis.
+ */
+static void cleanup_workers(process_record *records, unsigned int count,
+                            bool interrupted, double start_ms)
 {
     for (unsigned int i = 0U; i < count; ++i) {
-        if (records[i].worker.finished) {
+        process_record *record = &records[i];
+
+        if (record->worker.finished) {
             continue;
         }
-        runtime_resume(records[i].worker.pid);
-        worker_join(&records[i].worker);
+        if (interrupted) {
+            printf("Menghentikan proses %u (pid %ld)\n",
+                   record->worker.index, (long)record->worker.pid);
+            (void)worker_terminate(&record->worker, CLEANUP_GRACE_MS);
+        } else {
+            runtime_resume(record->worker.pid);
+            worker_join(&record->worker);
+        }
+        record->finish_ms = monotonic_ms() - start_ms;
+    }
+
+    const unsigned int orphans = worker_reap_orphans();
+
+    if (orphans > 0U) {
+        printf("%u proses anak sisa ikut dibersihkan.\n", orphans);
     }
 }
 
@@ -174,6 +209,7 @@ static void print_report(const process_record *records, unsigned int count,
 
     printf("Total pergantian giliran: %u\n", rr->switch_count);
     printf("Proses selesai: %u dari %u\n", rr->completed, count);
+    printf("Proses gagal: %u\n", count_failed(records, count));
     printf("Durasi simulasi: %.0f ms\n", total_ms);
 }
 
@@ -216,22 +252,32 @@ int main(int argc, char *argv[])
 
     if (spawned == 0U) {
         fprintf(stderr, "Tidak ada proses yang berhasil dibuat.\n");
+        runtime_signals_restore();
         return 1;
+    }
+    if (spawned < config.process_count) {
+        fprintf(stderr, "Peringatan: hanya %u dari %u proses dibuat.\n",
+                spawned, config.process_count);
     }
     printf("%u proses anak dibuat, penjadwalan Round Robin dimulai.\n",
            spawned);
+    puts("Tekan Ctrl+C untuk menghentikan simulasi lebih awal.");
 
     run_simulation(records, spawned, &rr, start_ms);
 
     const bool interrupted = runtime_interrupted();
 
-    finish_remaining(records, spawned);
-    collect_finished(records, spawned, start_ms);
+    cleanup_workers(records, spawned, interrupted, start_ms);
     print_report(records, spawned, &rr, monotonic_ms() - start_ms);
+    runtime_signals_restore();
 
     if (interrupted) {
-        puts("Simulasi dihentikan oleh signal.");
+        puts("Simulasi dihentikan lewat signal, proses anak sudah dibersihkan.");
         return 130;
+    }
+    if (count_failed(records, spawned) > 0U) {
+        puts("Sebagian proses berakhir tidak normal.");
+        return 1;
     }
     return 0;
 }
