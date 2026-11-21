@@ -118,6 +118,38 @@ Baris yang dicari berbentuk:
 ts_mark: caller=1234 target=1235 slice=100 ms total=7
 ```
 
+## Integrasi dengan Aplikasi
+
+Aplikasi memanggil `ts_mark` setiap kali satu giliran diberikan ke proses
+anak. Penghubungnya ada di
+[src/kernel_bridge/kernel_bridge.c](../src/kernel_bridge/kernel_bridge.c).
+
+Pemeriksaan dilakukan sekali saat program mulai, lalu hasilnya dipakai
+untuk seluruh sesi:
+
+| Keadaan kernel | Yang dilakukan aplikasi |
+| --- | --- |
+| syscall tersedia | mencatat setiap giliran, jumlahnya muncul di laporan |
+| syscall tidak ada (`ENOSYS`) | menampilkan pesan dan berjalan tanpa pencatatan |
+| nomor syscall dipakai fitur lain | pencatatan dimatikan agar tidak salah panggil |
+| syscall gagal di tengah sesi | pencatatan dimatikan, simulasi tetap lanjut |
+
+Contoh baris status pada kernel yang belum dimodifikasi:
+
+```text
+Fitur kernel: syscall ts_mark nomor 462 tidak ada pada kernel ini
+Pencatatan ke kernel dilewati, simulasi tetap berjalan.
+```
+
+Pada kernel hasil modifikasi, laporan akhir memuat baris:
+
+```text
+Giliran tercatat kernel: 12
+```
+
+Angka tersebut dapat dicocokkan dengan `total` pada keluaran
+`sudo dmesg | tail -20`.
+
 ## Pengembalian
 
 Kernel lama tetap ada di menu GRUB. Jika kernel hasil modifikasi gagal

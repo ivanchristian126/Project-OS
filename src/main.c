@@ -1,4 +1,5 @@
 #include "cli.h"
+#include "kernel_bridge.h"
 #include "runtime_signals.h"
 #include "scheduler.h"
 #include "timesharing.h"
@@ -106,6 +107,7 @@ static void run_simulation(process_record *records, unsigned int count,
 
         const double slice_start = monotonic_ms();
 
+        (void)kernel_bridge_mark(current.pid, slice);
         runtime_resume(current.pid);
         if (!runtime_timer_start(slice)) {
             fprintf(stderr, "Timer quantum gagal dijalankan.\n");
@@ -210,6 +212,7 @@ static void print_report(const process_record *records, unsigned int count,
     printf("Total pergantian giliran: %u\n", rr->switch_count);
     printf("Proses selesai: %u dari %u\n", rr->completed, count);
     printf("Proses gagal: %u\n", count_failed(records, count));
+    printf("Giliran tercatat kernel: %lu\n", kernel_bridge_marks());
     printf("Durasi simulasi: %.0f ms\n", total_ms);
 }
 
@@ -243,6 +246,13 @@ int main(int argc, char *argv[])
     if (!runtime_signals_install()) {
         fprintf(stderr, "Penyiapan signal dan timer gagal.\n");
         return 1;
+    }
+
+    const bool kernel_logging = kernel_bridge_probe();
+
+    printf("Fitur kernel: %s\n", kernel_bridge_status());
+    if (!kernel_logging) {
+        puts("Pencatatan ke kernel dilewati, simulasi tetap berjalan.");
     }
 
     rr_init(&rr, config.quantum_ms);
