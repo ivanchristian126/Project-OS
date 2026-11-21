@@ -172,6 +172,22 @@ Skrip menjalankan aplikasi dan seluruh uji, lalu menulis hasilnya ke
 | [docs/kernel-syscall.md](docs/kernel-syscall.md) | Syscall `ts_mark`, patch, pengujian, dan integrasi |
 | [docs/kernel-env.txt](docs/kernel-env.txt) | Catatan versi lingkungan yang dipakai |
 
+## Pengumpulan
+
+| Dokumen | Isi |
+| --- | --- |
+| [docs/submission.md](docs/submission.md) | Daftar periksa dan isi paket pengumpulan |
+| [docs/demo-script.md](docs/demo-script.md) | Naskah video demo 5 sampai 10 menit |
+
+Paket pengumpulan dibuat dengan:
+
+```bash
+bash scripts/package.sh
+```
+
+Skrip membangun ulang dari awal, menjalankan seluruh uji, menolak berjalan
+bila laporan belum diisi, lalu menyusun arsip di direktori `dist`.
+
 Tanpa kernel hasil modifikasi, aplikasi tetap berjalan penuh. Program
 hanya menampilkan bahwa syscall `ts_mark` tidak tersedia dan melewati
 pencatatan ke kernel.
