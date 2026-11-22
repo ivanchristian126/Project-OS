@@ -21,6 +21,8 @@ app=./build/timesharing
     printf '# Laporan Hasil Eksekusi\n\n'
     printf 'File ini dibuat oleh scripts/run_report.sh dari eksekusi nyata.\n'
     printf 'Jalankan ulang skrip setelah ada perubahan kode.\n\n'
+    printf 'Baris pencatatan kernel hanya terisi bila skrip dijalankan pada\n'
+    printf 'kernel hasil modifikasi. Lihat docs/kernel-syscall.md.\n\n'
     printf '## Lingkungan Pengujian\n\n'
     printf '| Keterangan | Nilai |\n'
     printf '| --- | --- |\n'
