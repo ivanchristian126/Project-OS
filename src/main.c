@@ -41,9 +41,13 @@ static process_record *find_record(process_record *records, unsigned int count,
     return NULL;
 }
 
-/* Mengumpulkan proses anak yang sudah selesai tanpa menunggu. */
+/*
+ * Mengumpulkan proses anak yang sudah selesai tanpa menunggu. Proses anak
+ * bisa baru terdeteksi selesai di luar gilirannya sendiri, jadi pencatatan
+ * selesai dilakukan di sini agar prosesnya langsung keluar dari antrean.
+ */
 static void collect_finished(process_record *records, unsigned int count,
-                             double start_ms)
+                             round_robin *rr, double start_ms)
 {
     for (unsigned int i = 0U; i < count; ++i) {
         if (records[i].worker.finished) {
@@ -51,6 +55,7 @@ static void collect_finished(process_record *records, unsigned int count,
         }
         if (worker_collect(&records[i].worker)) {
             records[i].finish_ms = monotonic_ms() - start_ms;
+            rr_complete(rr, records[i].worker.pid);
         }
     }
 }
@@ -122,7 +127,7 @@ static void run_simulation(process_record *records, unsigned int count,
 
         const double used = monotonic_ms() - slice_start;
 
-        collect_finished(records, count, start_ms);
+        collect_finished(records, count, rr, start_ms);
         runtime_clear_child_event();
 
         record->slices += 1U;
@@ -130,7 +135,6 @@ static void run_simulation(process_record *records, unsigned int count,
         rr_charge(&current, (unsigned int)used);
 
         if (record->worker.finished) {
-            rr_complete(rr, current.pid);
             printf("  proses %u selesai setelah %u giliran\n",
                    record->worker.index, record->slices);
         } else if (event == RUNTIME_EVENT_INTERRUPT) {
