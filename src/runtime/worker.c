@@ -75,6 +75,10 @@ static void reset_inherited_handlers(void)
 static void child_main(unsigned int index, unsigned int workload_ms)
 {
     reset_inherited_handlers();
+    /* Tunggu giliran pertama sebelum mencetak atau mengerjakan workload. */
+    if (raise(SIGSTOP) != 0) {
+        _exit(1);
+    }
     printf("    [worker %u] pid %ld mulai, beban %u ms\n",
            index, (long)getpid(), workload_ms);
     fflush(stdout);
@@ -112,7 +116,25 @@ bool worker_spawn(worker_handle *worker, unsigned int index,
     }
 
     worker->pid = pid;
-    return true;
+    /* Pastikan anak benar-benar berhenti sebelum diserahkan ke scheduler. */
+    int status = 0;
+    pid_t result;
+    do {
+        result = waitpid(pid, &status, WUNTRACED);
+    } while (result < 0 && errno == EINTR);
+
+    if (result == pid && WIFSTOPPED(status)) {
+        return true;
+    }
+    const int wait_error = errno;
+    fprintf(stderr, "Proses %u gagal siap untuk dijadwalkan.\n", index);
+    if (result == pid || (result < 0 && wait_error == ECHILD)) {
+        worker->finished = true;
+        worker->failed = true;
+    } else {
+        (void)worker_terminate(worker, 0U);
+    }
+    return false;
 }
 
 static void record_status(worker_handle *worker, int status)

@@ -9,6 +9,11 @@ if [[ "$(uname -s)" != "Linux" ]]; then
     exit 1
 fi
 
+if ! command -v timeout >/dev/null 2>&1; then
+    printf '%s\n' 'Pengujian memerlukan timeout dari GNU coreutils.' >&2
+    exit 1
+fi
+
 total=0
 failed=0
 app=./build/timesharing
@@ -21,16 +26,18 @@ run_case() {
 
     local output status
     total=$((total + 1))
-    output="$("$@" 2>&1)"
+    output="$(timeout --kill-after=2s 20s "$@" 2>&1)"
     status=$?
 
     if [[ "$status" -ne "$expected_exit" ]]; then
         printf 'FAIL %s (exit %d, diharapkan %d)\n' "$name" "$status" "$expected_exit"
+        printf '%s\n' "$output"
         failed=$((failed + 1))
         return
     fi
-    if [[ -n "$pattern" ]] && ! printf '%s' "$output" | grep -q -- "$pattern"; then
+    if [[ -n "$pattern" ]] && ! grep -Fq -- "$pattern" <<< "$output"; then
         printf 'FAIL %s (keluaran tidak memuat: %s)\n' "$name" "$pattern"
+        printf '%s\n' "$output"
         failed=$((failed + 1))
         return
     fi
@@ -42,13 +49,16 @@ if ! make --no-print-directory all >/dev/null; then
     printf 'Kompilasi aplikasi gagal.\n' >&2
     exit 1
 fi
-if ! make --no-print-directory build/test_queue >/dev/null; then
+if ! make --no-print-directory build/test_queue build/test_worker build/test_timer_failure >/dev/null; then
     printf 'Kompilasi uji unit gagal.\n' >&2
     exit 1
 fi
 
 printf '\nUji unit antrean dan penjadwal\n'
 run_case "uji unit antrean dan round robin" 0 "pemeriksaan lulus" ./build/test_queue
+run_case "worker menunggu giliran dan dibersihkan" 0 "Pemeriksaan worker lulus" ./build/test_worker
+run_case "timer gagal menghasilkan exit 1 tanpa anak tersisa" 1 \
+    "Cleanup setelah kegagalan timer lulus" ./build/test_timer_failure -p 3 -w 10000
 
 printf '\nSkenario aplikasi\n'
 run_case "satu proses" 0 "Proses selesai: 1 dari 1" \

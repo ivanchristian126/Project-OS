@@ -76,11 +76,11 @@ static unsigned int spawn_all(process_record *records,
         if (!worker_spawn(&record->worker, i + 1U, config->workload_ms)) {
             break;
         }
-        /* Proses ditahan sampai gilirannya tiba. */
-        runtime_stop(record->worker.pid);
+        /* worker_spawn sudah memastikan anak berhenti menunggu giliran. */
         if (!rr_admit(rr, record->worker.pid, config->workload_ms)) {
             fprintf(stderr, "Antrean penuh, proses %u tidak dijadwalkan.\n",
                     i + 1U);
+            (void)worker_terminate(&record->worker, CLEANUP_GRACE_MS);
             break;
         }
         spawned += 1U;
@@ -88,18 +88,22 @@ static unsigned int spawn_all(process_record *records,
     return spawned;
 }
 
-static void run_simulation(process_record *records, unsigned int count,
+static bool run_simulation(process_record *records, unsigned int count,
                            round_robin *rr, double start_ms)
 {
     while (rr_has_work(rr) && !runtime_interrupted()) {
         timesharing_process current;
 
         if (!rr_next(rr, &current)) {
-            break;
+            return false;
         }
 
         process_record *record = find_record(records, count, current.pid);
-        if (record == NULL || record->worker.finished) {
+        if (record == NULL) {
+            fprintf(stderr, "Catatan proses pada antrean tidak ditemukan.\n");
+            return false;
+        }
+        if (record->worker.finished) {
             continue;
         }
 
@@ -113,11 +117,14 @@ static void run_simulation(process_record *records, unsigned int count,
         const double slice_start = monotonic_ms();
 
         (void)kernel_bridge_mark(current.pid, slice);
-        runtime_resume(current.pid);
+        if (!runtime_resume(current.pid)) {
+            fprintf(stderr, "Proses %ld gagal dilanjutkan.\n", (long)current.pid);
+            return false;
+        }
         if (!runtime_timer_start(slice)) {
             fprintf(stderr, "Timer quantum gagal dijalankan.\n");
             runtime_stop(current.pid);
-            break;
+            return false;
         }
 
         const runtime_event event = runtime_wait_event();
@@ -140,10 +147,14 @@ static void run_simulation(process_record *records, unsigned int count,
         } else if (event == RUNTIME_EVENT_INTERRUPT) {
             break;
         } else {
-            rr_requeue(rr, current);
+            if (!rr_requeue(rr, current)) {
+                fprintf(stderr, "Proses gagal dikembalikan ke antrean.\n");
+                return false;
+            }
         }
         fflush(stdout);
     }
+    return true;
 }
 
 static unsigned int count_failed(const process_record *records,
@@ -160,11 +171,11 @@ static unsigned int count_failed(const process_record *records,
 }
 
 /*
- * Menutup semua proses anak. Saat dihentikan lewat signal, proses diminta
- * keluar; pada akhir normal proses dilanjutkan sampai bebannya habis.
+ * Menutup semua proses anak. Saat interupsi atau error, sisa proses
+ * dihentikan; pada akhir normal seluruh workload sudah selesai.
  */
 static void cleanup_workers(process_record *records, unsigned int count,
-                            bool interrupted, double start_ms)
+                            bool abort_run, double start_ms)
 {
     for (unsigned int i = 0U; i < count; ++i) {
         process_record *record = &records[i];
@@ -172,7 +183,7 @@ static void cleanup_workers(process_record *records, unsigned int count,
         if (record->worker.finished) {
             continue;
         }
-        if (interrupted) {
+        if (abort_run) {
             printf("Menghentikan proses %u (pid %ld)\n",
                    record->worker.index, (long)record->worker.pid);
             (void)worker_terminate(&record->worker, CLEANUP_GRACE_MS);
@@ -277,17 +288,22 @@ int main(int argc, char *argv[])
            spawned);
     puts("Tekan Ctrl+C untuk menghentikan simulasi lebih awal.");
 
-    run_simulation(records, spawned, &rr, start_ms);
+    const bool simulation_ok = run_simulation(records, spawned, &rr, start_ms);
+    const bool failed_run = !simulation_ok || spawned < config.process_count;
 
     const bool interrupted = runtime_interrupted();
 
-    cleanup_workers(records, spawned, interrupted, start_ms);
+    cleanup_workers(records, spawned, interrupted || failed_run, start_ms);
     print_report(records, spawned, &rr, monotonic_ms() - start_ms);
     runtime_signals_restore();
 
     if (interrupted) {
         puts("Simulasi dihentikan lewat signal, proses anak sudah dibersihkan.");
         return 130;
+    }
+    if (failed_run) {
+        puts("Simulasi gagal, proses anak sudah dibersihkan.");
+        return 1;
     }
     if (count_failed(records, spawned) > 0U) {
         puts("Sebagian proses berakhir tidak normal.");

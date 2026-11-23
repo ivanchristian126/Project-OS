@@ -14,7 +14,7 @@ typedef struct {
     int exit_status;
 } worker_handle;
 
-/* Membuat proses anak lewat fork() untuk menjalankan beban terbatas. */
+/* Membuat anak dan menunggu SIGSTOP awal; workload dimulai setelah SIGCONT. */
 bool worker_spawn(worker_handle *worker, unsigned int index,
                   unsigned int workload_ms);
 
