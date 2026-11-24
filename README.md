@@ -6,10 +6,10 @@ Simulasi Round Robin dalam bahasa C untuk Linux. Aplikasi membuat proses anak de
 
 Di PowerShell, buka distro Ubuntu dengan `wsl -d Ubuntu`. Jika nama distronya berbeda, lihat daftar dengan `wsl -l -v`.
 
-Di terminal Ubuntu, masuk ke folder yang berisi `build.sh`. Contoh untuk proyek yang tersimpan di drive C:
+Misalnya, jika proyek tersimpan di `C:\Projects\Project-OS`, jalankan perintah berikut di Ubuntu WSL. Sesuaikan path pada `cd` dengan lokasi folder yang berisi `build.sh` di komputermu.
 
 ```bash
-cd "/mnt/c/Users/chris/Documents/Project Cawu 6/OS"
+cd "/mnt/c/Projects/Project-OS"
 uname -r
 ```
 
