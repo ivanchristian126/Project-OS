@@ -1,0 +1,71 @@
+diff --git a/arch/x86/entry/syscalls/syscall_64.tbl b/arch/x86/entry/syscalls/syscall_64.tbl
+index 1d6eee30e..482262e87 100644
+--- a/arch/x86/entry/syscalls/syscall_64.tbl
++++ b/arch/x86/entry/syscalls/syscall_64.tbl
+@@ -375,6 +375,7 @@
+ 451	common	cachestat		sys_cachestat
+ 452	common	fchmodat2		sys_fchmodat2
+ 453	64	map_shadow_stack	sys_map_shadow_stack
++454	common	ts_mark			sys_ts_mark
+ 
+ #
+ # Due to a historical design error, certain syscalls are numbered differently
+diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
+index 36c592e43..d2c514603 100644
+--- a/include/linux/syscalls.h
++++ b/include/linux/syscalls.h
+@@ -1166,6 +1166,7 @@ asmlinkage long sys_old_mmap(struct mmap_arg_struct __user *arg);
+  * not implemented -- see kernel/sys_ni.c
+  */
+ asmlinkage long sys_ni_syscall(void);
++asmlinkage long sys_ts_mark(pid_t pid, unsigned int slice_ms);
+ 
+ #endif /* CONFIG_ARCH_HAS_SYSCALL_WRAPPER */
+ 
+diff --git a/kernel/Makefile b/kernel/Makefile
+index ce105a555..f5fa5cbbe 100644
+--- a/kernel/Makefile
++++ b/kernel/Makefile
+@@ -159,3 +159,6 @@ $(obj)/kheaders_data.tar.xz: FORCE
+ 	$(call cmd,genikh)
+ 
+ clean-files := kheaders_data.tar.xz kheaders.md5
++
++# Syscall tambahan proyek Time Sharing System
++obj-y += ts_mark.o
+diff --git a/kernel/ts_mark.c b/kernel/ts_mark.c
+new file mode 100644
+index 000000000..535856f87
+--- /dev/null
++++ b/kernel/ts_mark.c
+@@ -0,0 +1,30 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Syscall ts_mark: mencatat pergantian giliran dari aplikasi time sharing.
++ * File ini dipasang ke kernel/ts_mark.c pada source kernel.
++ */
++
++#include <linux/atomic.h>
++#include <linux/errno.h>
++#include <linux/kernel.h>
++#include <linux/printk.h>
++#include <linux/sched.h>
++#include <linux/syscalls.h>
++
++#define TS_MARK_MAX_SLICE_MS 10000U
++
++static atomic_long_t ts_mark_total = ATOMIC_LONG_INIT(0);
++
++SYSCALL_DEFINE2(ts_mark, pid_t, pid, unsigned int, slice_ms)
++{
++	long total;
++
++	if (pid <= 0 || slice_ms == 0 || slice_ms > TS_MARK_MAX_SLICE_MS)
++		return -EINVAL;
++
++	total = atomic_long_inc_return(&ts_mark_total);
++	pr_info_ratelimited("ts_mark: caller=%d target=%d slice=%u ms total=%ld\n",
++			    current->pid, pid, slice_ms, total);
++
++	return total;
++}

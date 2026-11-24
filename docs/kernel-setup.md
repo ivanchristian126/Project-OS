@@ -1,9 +1,9 @@
-# Penyiapan Lingkungan Kernel Linux
+# Penyiapan Kernel pada VM Linux dengan GRUB
 
-Dokumen ini mencatat lingkungan yang dipakai untuk pekerjaan kernel pada
-proyek ini dan langkah membangun kernel dari source.
+Untuk Ubuntu WSL 2, gunakan [panduan kernel WSL](kernel-wsl.md).
+Langkah di bawah berlaku untuk instalasi Linux x86-64 yang memakai GRUB.
 
-## Lingkungan yang Digunakan
+## Contoh Lingkungan VM
 
 Pekerjaan kernel tidak boleh dilakukan pada mesin utama. Gunakan mesin
 virtual agar kernel yang gagal boot tidak mengganggu sistem kerja.
@@ -85,6 +85,11 @@ scripts/config --set-str MODULE_SIG_KEY ""
 ```
 
 ## Kompilasi dan Instalasi
+
+Sebelum build, dari direktori proyek jalankan
+`bash kernel/patches/apply-ts-mark.sh ~/kernel/linux-6.8.12`.
+Sesuaikan path dengan lokasi source, kemudian kembali ke direktori source
+kernel untuk menjalankan perintah di bawah.
 
 ```bash
 make -j"$(nproc)"

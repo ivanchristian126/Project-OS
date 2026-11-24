@@ -1,6 +1,6 @@
 # Naskah Video Demo
 
-Target durasi 5 sampai 10 menit. Rekam di VM Linux yang sudah memakai
+Target durasi 5 sampai 10 menit. Rekam di Ubuntu WSL 2 yang sudah memakai
 kernel hasil modifikasi. Gunakan satu jendela terminal ukuran besar agar
 teks terbaca.
 
@@ -31,8 +31,7 @@ ls include src src/scheduler src/runtime src/kernel_bridge kernel tests
 ```
 
 Jelaskan pembagian modul: antrean proses, penjadwal Round Robin, proses
-anak dan signal, penghubung syscall. Sebutkan siapa mengerjakan bagian
-mana sesuai tabel pembagian tugas di README.
+anak dan signal, serta penghubung syscall.
 
 ### 3. Kompilasi dan Pengujian, 1:30 sampai 2:40
 
@@ -105,10 +104,8 @@ sudo dmesg | tail -20
 Tunjukkan bahwa `uname -r` memakai kernel hasil modifikasi, program uji
 lulus, dan log kernel memuat baris `ts_mark`. Jalankan aplikasi sekali
 lagi, lalu tunjuk baris `Fitur kernel` dan `Giliran tercatat kernel` pada
-laporan, dan cocokkan angkanya dengan `dmesg`.
-
-Sebutkan juga perilaku pada kernel biasa: aplikasi tetap jalan dan hanya
-memberi pesan bahwa syscall tidak tersedia.
+laporan. Baca kembali log dengan `sudo dmesg | grep 'ts_mark:' | tail -10`
+dan cocokkan PID worker serta durasi giliran dengan `target` dan `slice`.
 
 ### 8. Penutup, 7:30 sampai 8:00
 

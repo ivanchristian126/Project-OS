@@ -1,5 +1,6 @@
 # Catatan lingkungan kernel proyek Time Sharing System
-# File ini diisi otomatis oleh scripts/collect-env.sh di mesin Linux.
-# Status: BELUM DIISI. Jalankan skrip di VM Linux lalu commit hasilnya.
+# Sesi Ubuntu WSL 2 yang diuji pada 24 November 2026.
+# Detail toolchain BELUM DIISI. Jalankan bash scripts/collect-env.sh di Ubuntu.
 
-KERNEL_SOURCE=<url dan versi source kernel yang diunduh>
+KERNEL_RELEASE=6.6.87.2-microsoft-standard-WSL2-tsmark+
+KERNEL_SOURCE=https://github.com/microsoft/WSL2-Linux-Kernel/tree/linux-msft-wsl-6.6.87.2

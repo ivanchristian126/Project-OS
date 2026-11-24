@@ -7,7 +7,7 @@
  * kernel/patches/apply-ts-mark.sh memperbarui nilai ini otomatis.
  */
 #ifndef TS_MARK_SYSCALL_NR
-#define TS_MARK_SYSCALL_NR 462
+#define TS_MARK_SYSCALL_NR 454
 #endif
 
 /* Batas panjang slice yang diterima syscall. */

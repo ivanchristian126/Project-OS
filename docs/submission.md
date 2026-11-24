@@ -1,7 +1,7 @@
 # Daftar Periksa Pengumpulan
 
-Kerjakan dari atas ke bawah di mesin Linux. Setiap langkah harus benar
-benar dijalankan, bukan diisi dari ingatan.
+Jalankan langkah berikut dari folder proyek di Ubuntu setelah boot ke
+kernel proyek. Untuk penyiapan awal, ikuti [panduan WSL 2](kernel-wsl.md).
 
 ## 1. Catatan Lingkungan
 
@@ -24,15 +24,11 @@ Seluruh baris harus menunjukkan `PASS`. Perbaiki lebih dulu bila ada
 
 ## 3. Bagian Kernel
 
-```bash
-bash kernel/patches/apply-ts-mark.sh ~/kernel/linux-6.8.12
-```
-
-Lanjutkan kompilasi dan boot kernel sesuai
-[docs/kernel-syscall.md](kernel-syscall.md), lalu uji:
+Periksa versi yang aktif dan jalankan [uji syscall](kernel-syscall.md):
 
 ```bash
-make syscall-test
+uname -r
+make -B all syscall-test
 ./build/ts_mark_test
 sudo dmesg | tail -20
 ```

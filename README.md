@@ -1,250 +1,81 @@
 # Time Sharing System
 
-Time Sharing System v1.0.0 adalah simulasi Round Robin dalam bahasa C
-untuk Linux. Aplikasi membuat proses anak dengan `fork()`, memberi
-giliran berdasarkan antrean, dan memakai timer POSIX serta `SIGSTOP` dan
-`SIGCONT` untuk mengatur jalannya proses.
+Simulasi Round Robin dalam bahasa C untuk Linux. Aplikasi membuat proses anak dengan `fork()` dan memberi tiap proses giliran selama satu *quantum*. Saat timer habis, aplikasi mengirim `SIGSTOP` ke proses aktif dan melanjutkan proses berikutnya dengan `SIGCONT`. Pada kernel proyek, syscall `ts_mark` mencatat PID dan jatah waktu setiap giliran.
 
-| Bagian | Status |
-| --- | --- |
-| Aplikasi dan pengujian otomatis | Berhasil dibangun di Ubuntu WSL. Hasil `make check` terbaru yang dijalankan tim menunjukkan 14 dari 14 skenario lulus. |
-| Integrasi kernel | Source dan program uji `ts_mark` tersedia. Bukti boot dan hasil uji pada kernel modifikasi masih perlu dicatat. |
+## Menjalankan di Ubuntu WSL 2
 
-## Mulai Cepat
+Di PowerShell, buka distro Ubuntu dengan `wsl -d Ubuntu`. Jika nama distronya berbeda, lihat daftar dengan `wsl -l -v`.
 
-Buka terminal Linux di folder proyek. Di Windows, buka Ubuntu WSL atau
-gunakan Ubuntu di mesin virtual. Jika WSL membuka distro lain, cek nama
-Ubuntu lewat `wsl -l -v` di PowerShell, lalu jalankan `wsl -d Ubuntu`
-dengan nama yang terdaftar.
-
-Jika GCC dan GNU Make belum tersedia di Ubuntu atau Debian, instal
-`build-essential` terlebih dahulu.
+Di terminal Ubuntu, masuk ke folder yang berisi `build.sh`. Contoh untuk proyek yang tersimpan di drive C:
 
 ```bash
-sudo apt update
-sudo apt install build-essential
+cd "/mnt/c/Users/chris/Documents/Project Cawu 6/OS"
+uname -r
 ```
+
+Kernel yang digunakan untuk panduan ini adalah `6.6.87.2-microsoft-standard-WSL2-tsmark+`, dengan `ts_mark` terdaftar di nomor **454**. Aplikasi memanggil nomor dalam [ts_syscall.h](include/ts_syscall.h) saat mulai berjalan. Jika memakai kernel lain, periksa pemetaan nomornya dahulu karena nomor yang sama dapat menunjuk ke syscall berbeda. Untuk memasang kernel proyek di WSL baru, ikuti [panduan kernel WSL 2](docs/kernel-wsl.md).
+
+Bangun aplikasi dan jalankan simulasi pertama:
 
 ```bash
 bash build.sh
 ./build/timesharing -p 3 -q 50 -w 200
-make check
 ```
 
-Contoh tersebut menjalankan 3 proses, dengan giliran maksimum 50 ms dan
-beban CPU 200 ms per proses. Pada keluaran, perhatikan urutan giliran
-`1 → 2 → 3` dan ringkasan `Proses selesai: 3 dari 3`.
+Contoh ini menjalankan **3 proses**, masing-masing dengan beban **200 ms waktu CPU**. Setiap giliran mendapat jatah hingga **50 ms**. Jika GCC atau Make belum terpasang, jalankan `sudo apt update && sudo apt install build-essential`, lalu ulangi build.
 
-## Fitur
+## Mengatur simulasi
 
-| Bagian | Keterangan |
-| --- | --- |
-| Antrean proses | Antrean FIFO kapasitas tetap: menambah, mengambil, menghapus |
-| Penjadwal | Round Robin dengan quantum yang dapat diatur |
-| Proses anak | Satu proses per giliran, beban dibatasi waktu CPU sendiri |
-| Pergantian giliran | Timer POSIX mengirim `SIGALRM`, proses ditahan `SIGSTOP` |
-| Masukan | Jumlah proses, quantum, dan beban lewat prompt atau opsi |
-| Penghentian | `Ctrl+C` menutup seluruh proses anak tanpa meninggalkan zombie |
-| Integrasi kernel | Memanggil syscall `ts_mark` bila kernel sudah dimodifikasi |
+Jalankan `./build/timesharing` tanpa argumen di terminal untuk mengisi konfigurasi secara interaktif. Tekan Enter untuk menerima nilai bawaan.
 
-## Persyaratan
-
-| Komponen | Kebutuhan |
-| --- | --- |
-| Sistem operasi | Linux |
-| Compiler | GCC dengan dukungan C11 |
-| Build tool | GNU Make |
-| Shell | Bash |
-| Pengujian | GNU coreutils (`timeout`) dan GNU linker (`--wrap`) |
-
-## Opsi Aplikasi
-
-Tanpa opsi, program menanyakan konfigurasi lewat terminal. Menekan Enter
-memakai nilai default.
-
-```bash
-./build/timesharing
-```
-
-Konfigurasi dapat juga diberikan langsung:
-
-```bash
-./build/timesharing --processes 4 --quantum 50 --workload 300
-```
-
-| Opsi | Fungsi | Batas | Default |
+| Opsi | Fungsi | Rentang | Bawaan |
 | --- | --- | --- | --- |
-| `-p`, `--processes` | Jumlah proses anak | 1 sampai 16 | 3 |
-| `-q`, `--quantum` | Panjang satu giliran dalam ms | 10 sampai 2000 | 100 |
-| `-w`, `--workload` | Beban tiap proses dalam ms | 50 sampai 10000 | 500 |
-| `-v`, `--version` | Menampilkan versi | | |
-| `-h`, `--help` | Menampilkan bantuan | | |
+| `-p`, `--processes` | Jumlah proses anak | 1–16 | 3 |
+| `-q`, `--quantum` | Jatah waktu per giliran (ms) | 10–2000 | 100 |
+| `-w`, `--workload` | Beban CPU per proses (ms) | 50–10000 | 500 |
 
-Masukan di luar batas, bukan angka, atau opsi yang tidak dikenal ditolak
-dengan pesan yang menyebut nama nilai beserta batasnya, dan program keluar
-dengan kode 2.
+Gunakan `--help` untuk bantuan atau `--version` untuk melihat versi. Tekan **Ctrl+C** untuk menghentikan simulasi dan membersihkan proses anak. Kode keluar dapat diperiksa dengan `echo $?` segera setelah program berhenti: 0 untuk sukses, 1 untuk kegagalan saat berjalan, 2 untuk input tidak valid, dan 130 untuk interupsi.
 
-Kode keluar 0 menandakan simulasi berhasil. Kegagalan pembuatan proses,
-timer, atau penjadwalan menghasilkan kode 1; proses anak yang masih hidup
-dibersihkan saat simulasi dibatalkan. Penghentian lewat signal menghasilkan
-kode 130.
+## Membaca hasil
 
-## Cara Kerja Penjadwalan
+Baris `Giliran` menunjukkan proses yang dipilih, PID-nya, dan jatah waktu. Untuk tiga proses, giliran awal berputar dari proses 1 ke 2, lalu 3, kemudian kembali ke 1 selama semuanya masih memiliki pekerjaan.
 
-1. Program membaca konfigurasi, lalu memasang handler signal dan timer.
-2. Setiap proses anak dibuat dengan `fork()` dan langsung ditahan memakai
-   `SIGSTOP` sampai gilirannya datang. Anak menghentikan dirinya sebelum
-   memulai workload; parent menunggu konfirmasi `waitpid(..., WUNTRACED)`
-   sebelum memasukkannya ke antrean.
-3. Proses terdepan diambil dari antrean, dicatat ke kernel bila syscall
-   tersedia, lalu dilanjutkan dengan `SIGCONT`.
-4. Timer POSIX diatur sepanjang quantum. Giliran berakhir karena quantum
-   habis, proses anak selesai, atau `Ctrl+C`.
-5. Proses yang belum selesai ditahan kembali dan dikembalikan ke ekor
-   antrean. Proses yang sudah selesai dikeluarkan dari antrean sehingga
-   tidak mendapat giliran lagi.
-6. Setelah antrean kosong, program menunggu seluruh proses anak,
-   membersihkan sisa proses, lalu mencetak laporan.
+Cuplikan hasil dari contoh di atas pada kernel proyek:
 
-Beban tiap proses anak dibatasi oleh waktu CPU proses itu sendiri, bukan
-waktu dinding. Proses yang sedang ditahan `SIGSTOP` tidak menghabiskan
-kuota bebannya.
-
-## Susunan Keluaran
-
-| Baris | Cara membacanya |
-| --- | --- |
-| `Fitur kernel` | Menunjukkan apakah pencatatan lewat `ts_mark` tersedia. |
-| `Giliran ...` | Menunjukkan proses aktif, PID, dan jatah waktu. |
-| `[worker ...] progres` | Menunjukkan perkembangan beban CPU proses tersebut. |
-| `Proses selesai` dan `Proses gagal` | Pada simulasi normal, semua proses selesai dan jumlah gagal bernilai 0. |
-| `Giliran tercatat kernel` | Jumlah panggilan pencatatan giliran yang berhasil. Nilai 0 wajar ketika `ts_mark` tidak tersedia. |
-
-Contoh keluaran lengkap ada di [laporan hasil eksekusi](docs/report.md).
-
-## Pengujian
-
-```bash
-make test
+```text
+Total pergantian giliran: 12
+Proses selesai: 3 dari 3
+Proses gagal: 0
+Giliran tercatat kernel: 12
+Durasi simulasi: 602 ms
 ```
 
-Perintah di atas menjalankan uji unit antrean dan Round Robin: urutan
-masuk dan keluar, penolakan pid duplikat dan antrean penuh, penghapusan
-dari tengah antrean, perilaku buffer sirkular, kasus satu proses, kasus
-banyak proses, serta proses yang selesai lebih awal dan harus dilewati.
-Selain itu, uji worker memeriksa status berhenti sebelum giliran pertama,
-penyelesaian setelah `SIGCONT`, dan cleanup tanpa zombie.
+PID, jumlah giliran, dan durasi bisa berubah antar-eksekusi. Kolom `waktu(ms)` menjumlahkan lama giliran yang terukur oleh penjadwal. Kolom `selesai(ms)` menunjukkan waktu sejak simulasi dimulai sampai proses terdeteksi selesai.
+
+## Menguji aplikasi dan syscall
+
+Dari folder proyek, jalankan pengujian aplikasi:
 
 ```bash
 make check
 ```
 
-Perintah ini menjalankan uji unit lalu menjalankan aplikasi pada beberapa
-skenario: satu proses, empat proses, quantum lebih besar dari beban,
-jumlah proses maksimum, quantum minimum, dan sejumlah masukan tidak valid.
-Pengujian juga menyimulasikan kegagalan timer pada executable khusus untuk
-memastikan kode keluar 1 dan tidak ada proses anak tersisa. Injeksi error
-ini hanya ditautkan ke program uji, bukan ke `build/timesharing`.
-
-Setiap kasus uji dibatasi 20 detik; proses yang belum berhenti diberi
-`SIGKILL` setelah tambahan 2 detik. Keluaran kasus yang gagal ditampilkan
-agar penyebabnya dapat diperiksa.
-
-Untuk mengecek cleanup secara manual, jalankan simulasi dengan beban
-panjang. Setelah baris `Giliran` muncul, tekan **Ctrl+C** lalu jalankan
-`echo $?`. Aplikasi akan melaporkan bahwa proses anak sudah dibersihkan
-dan mengembalikan kode `130`.
+Hasil yang diharapkan adalah `14 dari 14 skenario lulus`. Untuk menguji syscall pada kernel proyek, bangun ulang kedua executable agar memakai nomor pada header saat ini:
 
 ```bash
-./build/timesharing -p 3 -q 100 -w 10000
+make -B all syscall-test &&
+./build/ts_mark_test &&
+./build/timesharing -p 3 -q 50 -w 200
+sudo dmesg | grep 'ts_mark:' | tail -10
 ```
 
-## Laporan Hasil
+Program uji menampilkan `Semua pemeriksaan syscall lulus.` Pada keluaran aplikasi, periksa `Giliran tercatat kernel`. Cocokkan PID dan jatah waktu di baris `Giliran` dengan `target` dan `slice` di log kernel. [Penjelasan syscall dan penghitung](docs/kernel-syscall.md).
 
-Laporan yang tersimpan memuat log eksekusi 16 November 2026. Untuk
-merekam keluaran lengkap dari versi saat ini, jalankan skrip berikut di
-Linux.
+Untuk memperbarui catatan lingkungan dan laporan dari mesin yang sedang digunakan:
 
 ```bash
+bash scripts/collect-env.sh
 bash scripts/run_report.sh
 ```
 
-Skrip menjalankan aplikasi dan seluruh uji, lalu menulis hasilnya ke
-[docs/report.md](docs/report.md) bersama catatan lingkungan.
-
-## Bagian Kernel
-
-Round Robin berjalan di aplikasi. Kernel modifikasi menyediakan syscall
-`ts_mark` untuk mencatat giliran yang diberikan aplikasi. Setelah boot
-ke kernel hasil build, jalankan uji syscall dan aplikasi dari folder proyek.
-
-```bash
-uname -r
-make syscall-test
-./build/ts_mark_test
-./build/timesharing -p 3 -q 50 -w 200
-sudo dmesg | grep ts_mark | tail -10
-```
-
-Hasil yang dicatat untuk demo adalah versi kernel, pesan
-`Semua pemeriksaan syscall lulus`, jumlah giliran tercatat yang lebih
-dari 0, dan entri `ts_mark` pada log kernel.
-
-| Dokumen | Isi |
-| --- | --- |
-| [docs/kernel-setup.md](docs/kernel-setup.md) | Penyiapan VM, paket build, dan kompilasi kernel |
-| [docs/kernel-syscall.md](docs/kernel-syscall.md) | Syscall `ts_mark`, patch, pengujian, dan integrasi |
-| [docs/kernel-env.txt](docs/kernel-env.txt) | Catatan versi lingkungan yang dipakai |
-
-
-Paket pengumpulan dibuat dengan:
-
-```bash
-bash scripts/package.sh
-```
-
-Skrip membangun ulang aplikasi dan menjalankan pengujian. Setelah
-laporan dan catatan lingkungan diisi, skrip dapat membuat arsip di
-direktori `dist`.
-
-## Struktur Proyek
-
-```text
-include/            header publik seluruh modul
-src/cli.c           pembacaan masukan dari terminal
-src/main.c          integrasi simulasi dan laporan akhir
-src/scheduler/      antrean proses dan Round Robin
-src/runtime/        proses anak, signal, dan timer quantum
-src/kernel_bridge/  pemanggilan syscall ts_mark
-kernel/             sumber syscall, skrip patch, dan uji syscall
-tests/              uji unit dan uji skenario
-scripts/            pencatat lingkungan dan pembuat laporan
-docs/               panduan kernel dan laporan hasil
-```
-
-## Perintah Build
-
-| Perintah | Fungsi |
-| --- | --- |
-| `bash build.sh` | Mengompilasi aplikasi melalui skrip build |
-| `make` | Mengompilasi aplikasi |
-| `make run` | Mengompilasi dan menjalankan aplikasi |
-| `make test` | Menjalankan uji unit |
-| `make check` | Menjalankan uji unit dan uji skenario |
-| `make syscall-test` | Mengompilasi program uji syscall |
-| `make clean` | Menghapus direktori hasil build |
-
-## Pemecahan Masalah
-
-- **`gcc` atau `make` tidak ditemukan:** instal paket `build-essential`.
-- **Executable belum tersedia:** jalankan `bash build.sh` dan pastikan
-  kompilasi selesai tanpa error.
-- **Perintah tidak berjalan di Windows.** Gunakan terminal Ubuntu WSL
-  atau terminal Linux di mesin virtual.
-- **Program langsung memakai nilai default.** Jika stdin berasal dari
-  pipe atau file, tentukan konfigurasi lewat opsi baris perintah.
-- **Baris `Fitur kernel` menyebut syscall tidak ada:** kernel yang sedang
-  berjalan belum dimodifikasi. Ikuti
-  [docs/kernel-syscall.md](docs/kernel-syscall.md).
-
-
+Hasilnya tersimpan di [docs/kernel-env.txt](docs/kernel-env.txt) dan [docs/report.md](docs/report.md).
